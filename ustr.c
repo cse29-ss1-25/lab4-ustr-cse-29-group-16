@@ -58,33 +58,54 @@ UStr substring(UStr s, int32_t start, int32_t end) {
         return substr;
     }
     else{
-        int32_t byte_start = 0;
-        int32_t byte_end = 0;
-        int32_t current_point = 0;
-        int32_t temp = 0;
-        while (current_point < start && temp < s.bytes){
-            if ((s.contents[temp] & 0xC0) != 0x80){
-                current_point++;
+        int* codepoint_starts = malloc(len(s) * sizeof(int));
+        if (!codepoint_starts) return new_ustr("");
+        
+        int byte_pos = 0;
+        int cp_count = 0;
+        
+        while (byte_pos < s.bytes && cp_count < len(s)) {
+            codepoint_starts[cp_count] = byte_pos;
+            
+            unsigned char first_byte = s.contents[byte_pos];
+            if ((first_byte & 0x80) == 0) {
+                byte_pos += 1;
+            } else if ((first_byte & 0xE0) == 0xC0) {
+                byte_pos += 2;
+            } else if ((first_byte & 0xF0) == 0xE0) {
+                byte_pos += 3;
+            } else if ((first_byte & 0xF8) == 0xF0) {
+                byte_pos += 4;
+            } else {
+                byte_pos += 1;
             }
-            temp++;
+            cp_count++;
         }
-        byte_start = temp;
-        byte_end = byte_start;
-        current_point = start;
-        for (; current_point < end && byte_end < s.bytes; byte_end++){
-            if ((s.contents[byte_end] & 0xC0) != 0x80){
-                current_point += 1;
-            }
+        
+        char* result = malloc(s.bytes + 1);
+        if (!result) {
+            free(codepoint_starts);
+            return new_ustr("");
         }
+        
+        int result_pos = 0;
+        
+        for (int i = cp_count - 1; i >= 0; i--) {
+            int start_byte = codepoint_starts[i];
+            int end_byte = (i == cp_count - 1) ? s.bytes : codepoint_starts[i + 1];
+            int cp_length = end_byte - start_byte;
+            
+            memcpy(result + result_pos, s.contents + start_byte, cp_length);
+            result_pos += cp_length;
+        }
+        
+        result[result_pos] = '\0';
+        free(codepoint_starts);
+        
+        UStr reversed_str = new_ustr(result);
+        free(result);
+        return reversed_str;
 
-        int32_t num_bytes = byte_end - byte_start;
-        char* content = (char*) malloc(num_bytes + 1);
-        memcpy(content, s.contents + byte_start, num_bytes);
-        content[num_bytes] = '\0';
-        printf("Content is %s\n", content);
-        UStr substr = new_ustr(content);
-        free(content);
-        return substr;
     }
 
 
@@ -109,7 +130,7 @@ UStr concat(UStr s1, UStr s2) {
         int32_t num_bytes = s1.bytes + s2.bytes;
         char* content = malloc(num_bytes + 1);
         memcpy(content, s1.contents, s1.bytes);
-        memcpy(content + s1.bytes, s1.contents, s2.bytes);
+        memcpy(content + s1.bytes, s2.contents, s2.bytes);
         content[num_bytes] = '\0';
 
         UStr concated = new_ustr(content);
@@ -126,7 +147,19 @@ Returns the original string if index is out of bounds.
 */
 UStr removeAt(UStr s, int32_t index) {
 	// TODO: implement this
+    if (index < 0 || index >= len(s) || s.contents == NULL){
+        return new_ustr(s.contents);
+    }
 
+
+    UStr before = substring(s, 0, index);
+    printf("Before is %s\n", before.contents);
+    UStr after = substring(s, index + 1, len(s));
+    printf("After is %s\n", after.contents);
+    UStr result = concat(before, after);
+    
+    printf("Result is %s\n", result.contents);
+    return result;
 }
 
 /*
@@ -136,7 +169,40 @@ Example: reverse("apples🍎 and bananas🍌") = "🍌sananab dna 🍎selppa")
 */
 UStr reverse(UStr s) {
 	// TODO: implement this
+    if (s.contents == NULL || len(s) == 0 ){
+        return new_ustr("");
+    }
+    else if (len(s) == 1){
+        return new_ustr(s.contents);
+    }
+    else{
+        if (s.is_ascii){
+            char* result = malloc(s.bytes + 1);
+            for (int32_t i = 0; i < s.bytes; i++){
+                result[i] = s.contents[s.bytes - 1 - i];
 
+            }
+            result[s.bytes] = '\0';
+            UStr reversed_str = new_ustr(result);
+            free(result);
+            return reversed_str;
+        }
+        else {
+        char* result_buffer = malloc(s.bytes + 1);
+        int result_pos = 0;
+        
+        for (int32_t i = len(s) - 1; i >= 0; i--) {
+            UStr char_at_i = substring(s, i, i + 1);
+            memcpy(result_buffer + result_pos, char_at_i.contents, char_at_i.bytes);
+            result_pos += char_at_i.bytes;
+        }
+        
+        result_buffer[result_pos] = '\0';
+        UStr reversed_str = new_ustr(result_buffer);
+        free(result_buffer);
+        return reversed_str;    
+        }
+    }
 }
 
 
