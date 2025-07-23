@@ -34,8 +34,35 @@ Given a list of strings and a separator string, returns a single string
 containing all the strings in list joined by the separator.
 */
 UStr join(List* list, UStr separator) {
-    // TODO: implement this
+	//return empty string if list is empty
+	if(!list->size)
+		return new_ustr("");
 
+	//find total bytes
+	int i, numBytes = 0;
+	for(i = 0; i < list->size; i++)
+		numBytes += list->data[i].bytes;
+	numBytes += (list->size - 1) * separator.bytes;
+
+	//loop through the list. for each loop, append the next string 
+	//and put the seperator at the end of each string
+	char *joinedStr = malloc(numBytes + 1);
+	int currByte = 0;
+
+	for(i = 0; i < list->size; i++){
+		memcpy(joinedStr + currByte, list->data[i].contents, list->data[i].bytes);
+		currByte += list->data[i].bytes;
+		if(i < list->size - 1){
+			memcpy(joinedStr + currByte, separator.contents, separator.bytes);
+			currByte += separator.bytes;
+		}
+	}
+	joinedStr[currByte] = '\0';
+
+	UStr joinedUstr = new_ustr(joinedStr);
+	free(joinedStr);
+
+	return joinedUstr;
 }
 
 /*
@@ -48,7 +75,6 @@ int8_t insert(List* list, UStr s, int32_t index) {
     // TODO: implement this
 
 }
-
 /*
 Removes the element at the given index and shifts all subsequent elements left.
 
